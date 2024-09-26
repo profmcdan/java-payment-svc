@@ -43,7 +43,7 @@ jobs:
         run: mvn --batch-mode --update-snapshots verify
 
   docker-build:
-    if: ${{ github.ref == 'refs/heads/main' }}
+    if: ${{ github.ref == 'refs/heads/dev' }}
     runs-on: ubuntu-latest
     needs:
       - project-build
