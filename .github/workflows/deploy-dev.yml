@@ -16,10 +16,26 @@ on:
 #      - 'src/**'
 #      - '.github/workflows/app-workflow.yaml'
 
+
+
 jobs:
   project-build:
     runs-on: ubuntu-latest
 
+    services:
+      db:
+        image: postgres:16-alpine
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_DB: testdb
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+        options: >
+          --health-cmd="pg_isready -U testuser" 
+          --health-interval=10s 
+          --health-timeout=5s 
+          --health-retries=5
     steps:
       - uses: actions/checkout@v4
 
@@ -29,6 +45,17 @@ jobs:
           distribution: 'temurin' # See 'Supported distributions' for available options
           java-version: '21'
 
+      - name: Wait for PostgreSQL service to be ready
+        run: |
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U testuser; then
+              echo "Postgres is ready!"
+              break
+            fi
+            echo "Waiting for PostgreSQL to be ready..."
+            sleep 2
+          done
+
       - name: Set up the Maven dependencies caching
         uses: actions/cache@v3
         with:
@@ -37,7 +64,11 @@ jobs:
           restore-keys: ${{ runner.os }}-m2
 
       - name: Install Maven dependencies
-        run: mvn install
+        run: |
+          export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/payment_db
+          export SPRING_DATASOURCE_USERNAME=testuser
+          export SPRING_DATASOURCE_PASSWORD=testpassword
+          mvn install
 
       - name: Run tests
         run: mvn --batch-mode --update-snapshots verify
